@@ -10,9 +10,7 @@ from typing import Any, Iterator
 
 from playwright.sync_api import Page, sync_playwright
 
-PAIRING_ID = 4
-B1_COLLECTION_ID = 119463
-HOME = "https://www.clozemaster.com/l/ell-eng"
+HOME = "https://www.clozemaster.com/"
 LOGIN_URL = "https://www.clozemaster.com/login"
 TOKEN = re.compile(r"[^\s.,;:!?«»()]+")
 
@@ -145,9 +143,81 @@ def poll(page: Page, data: Any) -> Any:
     return data
 
 
-def collection_base(collection_id: int | None) -> str:
-    cid = B1_COLLECTION_ID if collection_id is None else int(collection_id)
-    return f"https://www.clozemaster.com/api/v1/lp/{PAIRING_ID}/c/{cid}"
+def user_pairings(page: Page) -> list[dict]:
+    """Language pairings this account has used, not the full Clozemaster catalogue."""
+    data = ajax(page, "https://www.clozemaster.com/api/v1/lp")
+    rows = []
+    for pairing in data.get("languagePairings") or []:
+        if not (
+            pairing.get("playing")
+            or pairing.get("daysPlayedCount")
+            or pairing.get("score")
+            or pairing.get("currentDashboard")
+        ):
+            continue
+        rows.append(
+            {
+                "id": pairing["id"],
+                "slug": pairing.get("slug"),
+            }
+        )
+    return rows
+
+
+def own_collections(page: Page) -> list[dict]:
+    """Collections this account created, most recently practiced first.
+
+    A collection that has never been played sorts after every played one.
+    """
+    found = []
+    for pairing in user_pairings(page):
+        data = ajax(
+            page,
+            f"https://www.clozemaster.com/api/v1/lp/{pairing['id']}/c",
+            form={"filter": "mine"},
+        )
+        for collection in data.get("collections") or []:
+            found.append(
+                {
+                    "id": collection.get("id"),
+                    "name": collection.get("name"),
+                    "slug": collection.get("slug"),
+                    "pairingId": pairing["id"],
+                    "pairing": pairing.get("slug"),
+                    "sentences": collection.get("numSentences"),
+                    "playing": collection.get("numPlaying"),
+                    "lastPlayedAt": collection.get("lastPlayedAt"),
+                }
+            )
+    found.sort(
+        key=lambda collection: (
+            collection.get("lastPlayedAt") is not None,
+            collection.get("lastPlayedAt") or "",
+        ),
+        reverse=True,
+    )
+    if found:
+        found[0]["default"] = True
+    return found
+
+
+def resolve_collection(page: Page, collection_id: int | None) -> dict:
+    collections = own_collections(page)
+    if not collections:
+        raise ClozemasterError("This account has no collections.")
+    if collection_id is None:
+        return collections[0]
+    wanted = int(collection_id)
+    for collection in collections:
+        if collection["id"] == wanted:
+            return collection
+    raise ClozemasterError(f"Collection {wanted} is not on this account.")
+
+
+def collection_base(collection: dict) -> str:
+    return (
+        f"https://www.clozemaster.com/api/v1/lp/{collection['pairingId']}/c/{collection['id']}"
+    )
 
 
 def plain(text: str) -> str:
@@ -163,33 +233,23 @@ def with_cloze(greek: str, cloze: str) -> str:
     braced, count = pattern.subn("{{" + cloze + "}}", greek, count=1)
     if count != 1:
         raise ClozemasterError(
-            "The cloze must appear once as its own word in the Greek sentence."
+            "The cloze must appear once as its own word in the sentence."
         )
     return braced
 
 
 def list_collections(page: Page) -> list[dict]:
-    data = ajax(
-        page,
-        f"https://www.clozemaster.com/api/v1/lp/{PAIRING_ID}/c",
-        form={"filter": "mine"},
-    )
-    rows = []
-    for collection in data.get("collections") or []:
-        rows.append(
-            {
-                "id": collection.get("id"),
-                "name": collection.get("name"),
-                "slug": collection.get("slug"),
-                "sentences": collection.get("numSentences"),
-                "playing": collection.get("numPlaying"),
-            }
-        )
-    return rows
+    return own_collections(page)
 
 
-def list_sentences(page: Page, collection_id: int | None, query: str = "") -> list[dict]:
-    base = collection_base(collection_id)
+def list_sentences(
+    page: Page,
+    collection_id: int | None,
+    query: str = "",
+    collection: dict | None = None,
+) -> list[dict]:
+    collection = collection or resolve_collection(page, collection_id)
+    base = collection_base(collection)
     rows: list[dict] = []
     page_no = 1
     total = None
@@ -233,10 +293,11 @@ def add_sentence(
     note: str,
     collection_id: int | None,
 ) -> dict:
+    collection = resolve_collection(page, collection_id)
     text = with_cloze(greek, cloze)
     data = ajax(
         page,
-        f"{collection_base(collection_id)}/ccs",
+        f"{collection_base(collection)}/ccs",
         "post",
         json_body={
             "collection_cloze_sentence": {
@@ -267,10 +328,11 @@ def update_sentence(
     note: str,
     collection_id: int | None,
 ) -> dict:
-    current = _sentence(page, sentence_id, collection_id)
+    collection = resolve_collection(page, collection_id)
+    current = _sentence(page, sentence_id, collection)
     data = ajax(
         page,
-        f"{collection_base(collection_id)}/bulk_collection_cloze_sentences_upserts",
+        f"{collection_base(collection)}/bulk_collection_cloze_sentences_upserts",
         "post",
         json_body={
             "updates": [
@@ -285,7 +347,7 @@ def update_sentence(
         },
     )
     data = poll(page, data)
-    updated = _sentence(page, sentence_id, collection_id)
+    updated = _sentence(page, sentence_id, collection)
     return {
         "id": sentence_id,
         "text": updated["text"],
@@ -301,14 +363,15 @@ def delete_sentence(
     greek: str,
     collection_id: int | None,
 ) -> dict:
-    current = _sentence(page, sentence_id, collection_id)
+    collection = resolve_collection(page, collection_id)
+    current = _sentence(page, sentence_id, collection)
     if plain(current["text"]) != plain(greek):
         raise ClozemasterError(
-            "Refused to delete. The Greek text does not match that sentence id."
+            "Refused to delete. The sentence text does not match that sentence id."
         )
     ajax(
         page,
-        f"{collection_base(collection_id)}/ccs/delete",
+        f"{collection_base(collection)}/ccs/delete",
         "post",
         json_body={"collection_cloze_sentence_id": sentence_id},
     )
@@ -316,10 +379,11 @@ def delete_sentence(
 
 
 def ignore_sentence(page: Page, sentence_id: int, collection_id: int | None) -> dict:
-    current = _sentence(page, sentence_id, collection_id)
+    collection = resolve_collection(page, collection_id)
+    current = _sentence(page, sentence_id, collection)
     ajax(
         page,
-        f"{collection_base(collection_id)}/ccs/ignore_all",
+        f"{collection_base(collection)}/ccs/ignore_all",
         "put",
         form={"collection_cloze_sentence_id": sentence_id},
     )
@@ -327,7 +391,8 @@ def ignore_sentence(page: Page, sentence_id: int, collection_id: int | None) -> 
 
 
 def next_cards(page: Page, collection_id: int | None) -> dict:
-    data = ajax(page, f"{collection_base(collection_id)}/play")
+    collection = resolve_collection(page, collection_id)
+    data = ajax(page, f"{collection_base(collection)}/play")
     cards = []
     for sentence in (data.get("collectionClozeSentences") or [])[:10]:
         cards.append(
@@ -344,8 +409,8 @@ def next_cards(page: Page, collection_id: int | None) -> dict:
     }
 
 
-def _sentence(page: Page, sentence_id: int, collection_id: int | None) -> dict:
-    for sentence in list_sentences(page, collection_id):
+def _sentence(page: Page, sentence_id: int, collection: dict) -> dict:
+    for sentence in list_sentences(page, None, collection=collection):
         if sentence["id"] == sentence_id:
             return sentence
     raise ClozemasterError(f"Sentence {sentence_id} is not in that collection.")

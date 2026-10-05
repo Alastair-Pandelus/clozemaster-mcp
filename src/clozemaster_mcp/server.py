@@ -7,7 +7,6 @@ import json
 from mcp.server.mcpserver import MCPServer
 
 from clozemaster_mcp.client import (
-    B1_COLLECTION_ID,
     LoginRequired,
     add_sentence,
     browser,
@@ -24,8 +23,9 @@ from clozemaster_mcp.client import (
 mcp = MCPServer(
     "clozemaster",
     instructions=(
-        "Clozemaster tools for the signed-in account. The default collection is "
-        f"Greek School of Glasgow - B1, id {B1_COLLECTION_ID}. "
+        "Clozemaster tools for the signed-in account. They work on any collection "
+        "that account created. When collection_id is omitted, the tools use the "
+        "collection practiced most recently. Pass collection_id to choose another. "
         "If a tool says the session has expired, ask the user to run login and "
         "sign in in the window. Do not ask for their password. "
         "These tools do not delete a collection and do not reset progress."
@@ -58,16 +58,19 @@ def clozemaster_login() -> str:
 
 @mcp.tool()
 def clozemaster_list_collections() -> str:
-    """List Clozemaster collections on the Greek–English account."""
+    """List this account's collections, most recently practiced first.
+
+    The first collection is the default used when collection_id is omitted.
+    """
     return _run(list_collections)
 
 
 @mcp.tool()
 def clozemaster_list_sentences(query: str = "", collection_id: int | None = None) -> str:
-    """List cards in a collection. Defaults to the B1 course.
+    """List cards in a collection. Defaults to the last course practiced.
 
-    query filters by Clozemaster's sentence search. collection_id overrides
-    the default B1 collection.
+    query filters by Clozemaster's sentence search. collection_id chooses
+    a different collection.
     """
     return _run(lambda page: list_sentences(page, collection_id, query))
 

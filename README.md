@@ -4,7 +4,11 @@ A local [MCP](https://modelcontextprotocol.io) server for a signed-in Clozemaste
 
 Sign-in happens in a browser window the server opens. The password stays in that window. The session is stored in a Chrome profile under `%LOCALAPPDATA%\clozemaster-mcp\profile`, which is outside this repo.
 
-The default collection is Greek School of Glasgow - B1, id `119463`.
+## Credentials
+
+Do not commit passwords, session cookies, CSRF tokens, or the browser profile. They stay on this PC. `.gitignore` already excludes `.env`, `profile/`, and `.profile/`. If a future change needs a secret, keep it out of the repo and out of the README.
+
+When a tool is called without a collection id, it uses the collection this account practiced most recently. Pass `collection_id` to use a different one.
 
 The tools can list collections and cards, add a card, change its English and note, delete one card when the Greek text matches, hide a card from play, and read the next play cards. They do not delete a collection and do not reset progress.
 
@@ -24,7 +28,7 @@ Cursor is configured to launch `.\.venv\Scripts\python.exe -m clozemaster_mcp`. 
 | Tool | What it does |
 |---|---|
 | `clozemaster_login` | Opens the sign-in window and waits up to five minutes |
-| `clozemaster_list_collections` | Lists your Greek–English collections |
+| `clozemaster_list_collections` | Lists your collections, most recently practiced first |
 | `clozemaster_list_sentences` | Lists cards, with an optional search |
 | `clozemaster_add_sentence` | Adds one card and marks the cloze |
 | `clozemaster_update_sentence` | Changes the English and the note |
