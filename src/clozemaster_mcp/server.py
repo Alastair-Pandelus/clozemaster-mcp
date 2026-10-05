@@ -23,8 +23,10 @@ from clozemaster_mcp.client import (
 mcp = MCPServer(
     "clozemaster",
     instructions=(
-        "Clozemaster tools for the signed-in account. They work on any collection "
-        "that account created. When collection_id is omitted, the tools use the "
+        "Clozemaster tools for the signed-in account, for any language pairing. "
+        "A card's sentence is in the collection's target language and its "
+        "translation is in the base language. They work on any collection that "
+        "account created. When collection_id is omitted, the tools use the "
         "collection practiced most recently. Pass collection_id to choose another. "
         "If a tool says the session has expired, ask the user to run login and "
         "sign in in the window. Do not ask for their password. "
@@ -77,45 +79,46 @@ def clozemaster_list_sentences(query: str = "", collection_id: int | None = None
 
 @mcp.tool()
 def clozemaster_add_sentence(
-    greek: str,
-    english: str,
+    sentence: str,
+    translation: str,
     cloze: str,
     note: str,
     collection_id: int | None = None,
 ) -> str:
-    """Add one card. cloze must be one whole word in greek.
+    """Add one card. cloze must be one whole word in sentence.
 
-    The server marks that word with double braces. note is the dictionary line.
+    sentence is the target language. translation is the base language.
+    The server marks the cloze with double braces. note is the dictionary line.
     """
     return _run(
-        lambda page: add_sentence(page, greek, english, cloze, note, collection_id)
+        lambda page: add_sentence(page, sentence, translation, cloze, note, collection_id)
     )
 
 
 @mcp.tool()
 def clozemaster_update_sentence(
     sentence_id: int,
-    english: str,
+    translation: str,
     note: str,
     collection_id: int | None = None,
 ) -> str:
-    """Change the English and note of an existing card. The Greek stays as it is."""
+    """Change the translation and note of an existing card. The sentence stays as it is."""
     return _run(
-        lambda page: update_sentence(page, sentence_id, english, note, collection_id)
+        lambda page: update_sentence(page, sentence_id, translation, note, collection_id)
     )
 
 
 @mcp.tool()
 def clozemaster_delete_sentence(
     sentence_id: int,
-    greek: str,
+    sentence: str,
     collection_id: int | None = None,
 ) -> str:
-    """Delete one card. greek must match that card's sentence, or the delete is refused.
+    """Delete one card. sentence must match that card's text, or the delete is refused.
 
     This drops progress on that card only.
     """
-    return _run(lambda page: delete_sentence(page, sentence_id, greek, collection_id))
+    return _run(lambda page: delete_sentence(page, sentence_id, sentence, collection_id))
 
 
 @mcp.tool()

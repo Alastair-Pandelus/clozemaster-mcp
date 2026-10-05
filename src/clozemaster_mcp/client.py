@@ -224,13 +224,13 @@ def plain(text: str) -> str:
     return text.replace("{{", "").replace("}}", "").strip()
 
 
-def with_cloze(greek: str, cloze: str) -> str:
-    if "{{" in greek:
-        if f"{{{{{cloze}}}}}" not in greek and "{{" + cloze + "}}" not in greek:
+def with_cloze(sentence: str, cloze: str) -> str:
+    if "{{" in sentence:
+        if f"{{{{{cloze}}}}}" not in sentence and "{{" + cloze + "}}" not in sentence:
             raise ClozemasterError("The braced cloze does not match the cloze word.")
-        return greek
+        return sentence
     pattern = re.compile(rf"(?<!\w){re.escape(cloze)}(?!\w)")
-    braced, count = pattern.subn("{{" + cloze + "}}", greek, count=1)
+    braced, count = pattern.subn("{{" + cloze + "}}", sentence, count=1)
     if count != 1:
         raise ClozemasterError(
             "The cloze must appear once as its own word in the sentence."
@@ -287,14 +287,14 @@ def list_sentences(
 
 def add_sentence(
     page: Page,
-    greek: str,
-    english: str,
+    sentence: str,
+    translation: str,
     cloze: str,
     note: str,
     collection_id: int | None,
 ) -> dict:
     collection = resolve_collection(page, collection_id)
-    text = with_cloze(greek, cloze)
+    text = with_cloze(sentence, cloze)
     data = ajax(
         page,
         f"{collection_base(collection)}/ccs",
@@ -302,7 +302,7 @@ def add_sentence(
         json_body={
             "collection_cloze_sentence": {
                 "text": text,
-                "translation": english,
+                "translation": translation,
                 "notes": note,
                 "pronunciation": None,
                 "alternative_answers": [],
@@ -324,7 +324,7 @@ def add_sentence(
 def update_sentence(
     page: Page,
     sentence_id: int,
-    english: str,
+    translation: str,
     note: str,
     collection_id: int | None,
 ) -> dict:
@@ -339,7 +339,7 @@ def update_sentence(
                 {
                     "id": sentence_id,
                     "text": current["text"],
-                    "translation": english,
+                    "translation": translation,
                     "notes": note,
                     "pronunciation": None,
                 }
@@ -360,12 +360,12 @@ def update_sentence(
 def delete_sentence(
     page: Page,
     sentence_id: int,
-    greek: str,
+    sentence: str,
     collection_id: int | None,
 ) -> dict:
     collection = resolve_collection(page, collection_id)
     current = _sentence(page, sentence_id, collection)
-    if plain(current["text"]) != plain(greek):
+    if plain(current["text"]) != plain(sentence):
         raise ClozemasterError(
             "Refused to delete. The sentence text does not match that sentence id."
         )

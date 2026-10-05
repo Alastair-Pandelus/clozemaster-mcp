@@ -10,7 +10,7 @@ Do not commit passwords, session cookies, CSRF tokens, or the browser profile. T
 
 When a tool is called without a collection id, it uses the collection this account practiced most recently. Pass `collection_id` to use a different one.
 
-The tools can list collections and cards, add a card, change its English and note, delete one card when the Greek text matches, hide a card from play, and read the next play cards. They do not delete a collection and do not reset progress.
+The tools work for any language pairing on the account. A card's sentence is in the collection's target language, and its translation is in the base language. They can list collections and cards, add a card, change its translation and note, delete one card when the sentence text matches, hide a card from play, and read the next play cards. They do not delete a collection and do not reset progress.
 
 ## Install
 
@@ -31,7 +31,7 @@ Cursor is configured to launch `.\.venv\Scripts\python.exe -m clozemaster_mcp`. 
 | `clozemaster_list_collections` | Lists your collections, most recently practiced first |
 | `clozemaster_list_sentences` | Lists cards, with an optional search |
 | `clozemaster_add_sentence` | Adds one card and marks the cloze |
-| `clozemaster_update_sentence` | Changes the English and the note |
-| `clozemaster_delete_sentence` | Deletes one card when the Greek text matches |
+| `clozemaster_update_sentence` | Changes the translation and the note |
+| `clozemaster_delete_sentence` | Deletes one card when the sentence text matches |
 | `clozemaster_ignore_sentence` | Hides one card from play |
 | `clozemaster_next_cards` | Reads the next play cards |
