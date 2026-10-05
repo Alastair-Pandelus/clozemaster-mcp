@@ -1,0 +1,19 @@
+[project]
+name = "clozemaster-mcp"
+version = "0.1.0"
+description = "Local MCP server for a signed-in Clozemaster account"
+requires-python = ">=3.11"
+dependencies = [
+  "mcp>=1.2",
+  "playwright>=1.40",
+]
+
+[project.scripts]
+clozemaster-mcp = "clozemaster_mcp.server:main"
+
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+where = ["src"]

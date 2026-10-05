@@ -1,0 +1,1 @@
+"""Local Clozemaster MCP server."""
