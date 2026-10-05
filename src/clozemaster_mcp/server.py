@@ -7,16 +7,21 @@ import json
 from mcp.server.mcpserver import MCPServer
 
 from clozemaster_mcp.client import (
+    ClozemasterError,
     LoginRequired,
     add_sentence,
+    add_sentences,
     browser,
+    create_collection,
     delete_sentence,
+    find_by_cloze,
     ignore_sentence,
     list_collections,
     list_sentences,
     login,
     next_cards,
     open_dashboard,
+    replace_sentence,
     update_sentence,
 )
 
@@ -33,6 +38,9 @@ mcp = MCPServer(
         "collection_id when more than one collection matches. "
         "If a tool says the session has expired, ask the user to run login and "
         "sign in in the window. Do not ask for their password. "
+        "Add several cards with the lesson tool. A card is skipped when that "
+        "sentence already hides the same cloze, or when that cloze is already "
+        "a card. The same sentence may be added again with a new cloze. "
         "These tools do not delete a collection and do not reset progress."
     ),
 )
@@ -43,7 +51,7 @@ def _run(work):
         with browser(headless=True) as page:
             open_dashboard(page)
             return json.dumps(work(page), ensure_ascii=False, indent=2)
-    except LoginRequired as exc:
+    except (LoginRequired, ClozemasterError) as exc:
         return str(exc)
 
 
@@ -172,6 +180,75 @@ def clozemaster_next_cards(
     collection_name chooses the collection by its name.
     """
     return _run(lambda page: next_cards(page, collection_id, collection_name))
+
+
+@mcp.tool()
+def clozemaster_add_sentences(
+    cards: list[dict],
+    collection_id: int | None = None,
+    collection_name: str | None = None,
+) -> str:
+    """Add many cards in one call. Each card has sentence, translation, cloze, and note.
+
+    A card is skipped when that sentence already hides the same cloze, or when
+    that cloze is already a card. The same sentence is added when the cloze is new.
+    """
+    return _run(lambda page: add_sentences(page, cards, collection_id, collection_name))
+
+
+@mcp.tool()
+def clozemaster_find_cloze(
+    cloze: str,
+    collection_id: int | None = None,
+    collection_name: str | None = None,
+) -> str:
+    """Find the card whose hidden word is cloze. Returns its id and sentence."""
+    return _run(lambda page: find_by_cloze(page, cloze, collection_id, collection_name))
+
+
+@mcp.tool()
+def clozemaster_replace_sentence(
+    sentence_id: int,
+    sentence: str,
+    replacement: str,
+    collection_id: int | None = None,
+    collection_name: str | None = None,
+    cloze: str | None = None,
+    translation: str | None = None,
+    note: str | None = None,
+) -> str:
+    """Replace one sentence. Adds the new sentence, then deletes the old card.
+
+    sentence must match the current card. The cloze, translation, and note stay
+    unless new ones are passed. Progress on the old card is dropped.
+    """
+    return _run(
+        lambda page: replace_sentence(
+            page,
+            sentence_id,
+            sentence,
+            replacement,
+            collection_id,
+            collection_name,
+            cloze,
+            translation,
+            note,
+        )
+    )
+
+
+@mcp.tool()
+def clozemaster_create_collection(
+    name: str,
+    pairing: str | None = None,
+    description: str = "",
+) -> str:
+    """Create a collection. pairing is a language slug such as ell-eng.
+
+    When pairing is omitted, the collection uses the language of the course
+    practiced most recently. Cards are played in the order they were added.
+    """
+    return _run(lambda page: create_collection(page, name, pairing, description))
 
 
 def main() -> None:

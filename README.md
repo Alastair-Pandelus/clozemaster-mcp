@@ -30,7 +30,11 @@ Cursor is configured to launch `.\.venv\Scripts\python.exe -m clozemaster_mcp`. 
 | `clozemaster_login` | Opens the sign-in window and waits up to five minutes |
 | `clozemaster_list_collections` | Lists your collections, most recently practiced first |
 | `clozemaster_list_sentences` | Lists cards, with an optional search |
-| `clozemaster_add_sentence` | Adds one card and marks the cloze |
+| `clozemaster_add_sentence` | Adds one card and marks the cloze. Skips a sentence or cloze already there |
+| `clozemaster_add_sentences` | Adds a lesson of cards in one call and reports which were skipped |
+| `clozemaster_find_cloze` | Finds the card for a cloze word |
+| `clozemaster_replace_sentence` | Adds a new sentence for a card, then deletes the old card |
+| `clozemaster_create_collection` | Creates a collection by name on a language pairing |
 | `clozemaster_update_sentence` | Changes the translation and the note |
 | `clozemaster_delete_sentence` | Deletes one card when the sentence text matches |
 | `clozemaster_ignore_sentence` | Hides one card from play |
