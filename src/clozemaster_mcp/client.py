@@ -202,24 +202,24 @@ def own_collections(page: Page) -> list[dict]:
 
 
 def collection_by_name(collections: list[dict], collection_name: str) -> dict:
+    """Match a collection name. A full name wins. Otherwise one name that contains the text."""
     wanted = collection_name.strip().casefold()
     if not wanted:
         raise ClozemasterError("Collection name is empty.")
-    matches = [
-        collection
-        for collection in collections
-        if (collection.get("name") or "").strip().casefold() == wanted
-    ]
+    names = [(collection, (collection.get("name") or "").strip().casefold()) for collection in collections]
+    exact = [collection for collection, name in names if name == wanted]
+    matches = exact or [collection for collection, name in names if wanted in name]
     if len(matches) == 1:
         return matches[0]
     label = collection_name.strip()
-    if not matches:
-        raise ClozemasterError(f"No collection is named {label!r}.")
     listed = ", ".join(
-        f"{collection['id']} ({collection.get('pairing')})" for collection in matches
+        f"{collection['id']} {collection.get('name')!r} ({collection.get('pairing')})"
+        for collection in matches
     )
+    if not matches:
+        raise ClozemasterError(f"No collection name contains {label!r}.")
     raise ClozemasterError(
-        f"More than one collection is named {label!r}. Pass collection_id. Matches: {listed}."
+        f"More than one collection name contains {label!r}. Pass collection_id. Matches: {listed}."
     )
 
 
