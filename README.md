@@ -8,7 +8,7 @@ Sign-in happens in a browser window the server opens. The password stays in that
 
 Do not commit passwords, session cookies, CSRF tokens, or the browser profile. They stay on this PC. `.gitignore` already excludes `.env`, `profile/`, and `.profile/`. If a future change needs a secret, keep it out of the repo and out of the README.
 
-When a tool is called without a collection id, it uses the collection this account practiced most recently. Pass `collection_id` to use a different one.
+When a tool is called without a collection, it uses the collection this account practiced most recently. Pass `collection_name` to choose another collection by its name. Pass `collection_id` when two collections share a name.
 
 The tools work for any language pairing on the account. A card's sentence is in the collection's target language, and its translation is in the base language. They can list collections and cards, add a card, change its translation and note, delete one card when the sentence text matches, hide a card from play, and read the next play cards. They do not delete a collection and do not reset progress.
 

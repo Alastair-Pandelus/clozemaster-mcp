@@ -201,17 +201,56 @@ def own_collections(page: Page) -> list[dict]:
     return found
 
 
-def resolve_collection(page: Page, collection_id: int | None) -> dict:
+def collection_by_name(collections: list[dict], collection_name: str) -> dict:
+    wanted = collection_name.strip().casefold()
+    if not wanted:
+        raise ClozemasterError("Collection name is empty.")
+    matches = [
+        collection
+        for collection in collections
+        if (collection.get("name") or "").strip().casefold() == wanted
+    ]
+    if len(matches) == 1:
+        return matches[0]
+    label = collection_name.strip()
+    if not matches:
+        raise ClozemasterError(f"No collection is named {label!r}.")
+    listed = ", ".join(
+        f"{collection['id']} ({collection.get('pairing')})" for collection in matches
+    )
+    raise ClozemasterError(
+        f"More than one collection is named {label!r}. Pass collection_id. Matches: {listed}."
+    )
+
+
+def resolve_collection(
+    page: Page,
+    collection_id: int | None = None,
+    collection_name: str | None = None,
+) -> dict:
     collections = own_collections(page)
     if not collections:
         raise ClozemasterError("This account has no collections.")
-    if collection_id is None:
+    name = collection_name.strip() if collection_name else ""
+    if collection_id is None and not name:
         return collections[0]
-    wanted = int(collection_id)
-    for collection in collections:
-        if collection["id"] == wanted:
-            return collection
-    raise ClozemasterError(f"Collection {wanted} is not on this account.")
+    chosen = None
+    if collection_id is not None:
+        wanted = int(collection_id)
+        for collection in collections:
+            if collection["id"] == wanted:
+                chosen = collection
+                break
+        if chosen is None:
+            raise ClozemasterError(f"Collection {wanted} is not on this account.")
+    if name:
+        named = collection_by_name(collections, name)
+        if chosen is not None and chosen["id"] != named["id"]:
+            raise ClozemasterError(
+                f"collection_id {chosen['id']} is {chosen.get('name')!r}, not {name!r}."
+            )
+        return named
+    return chosen
 
 
 def collection_base(collection: dict) -> str:
@@ -247,8 +286,9 @@ def list_sentences(
     collection_id: int | None,
     query: str = "",
     collection: dict | None = None,
+    collection_name: str | None = None,
 ) -> list[dict]:
-    collection = collection or resolve_collection(page, collection_id)
+    collection = collection or resolve_collection(page, collection_id, collection_name)
     base = collection_base(collection)
     rows: list[dict] = []
     page_no = 1
@@ -292,8 +332,9 @@ def add_sentence(
     cloze: str,
     note: str,
     collection_id: int | None,
+    collection_name: str | None = None,
 ) -> dict:
-    collection = resolve_collection(page, collection_id)
+    collection = resolve_collection(page, collection_id, collection_name)
     text = with_cloze(sentence, cloze)
     data = ajax(
         page,
@@ -327,8 +368,9 @@ def update_sentence(
     translation: str,
     note: str,
     collection_id: int | None,
+    collection_name: str | None = None,
 ) -> dict:
-    collection = resolve_collection(page, collection_id)
+    collection = resolve_collection(page, collection_id, collection_name)
     current = _sentence(page, sentence_id, collection)
     data = ajax(
         page,
@@ -362,8 +404,9 @@ def delete_sentence(
     sentence_id: int,
     sentence: str,
     collection_id: int | None,
+    collection_name: str | None = None,
 ) -> dict:
-    collection = resolve_collection(page, collection_id)
+    collection = resolve_collection(page, collection_id, collection_name)
     current = _sentence(page, sentence_id, collection)
     if plain(current["text"]) != plain(sentence):
         raise ClozemasterError(
@@ -378,8 +421,13 @@ def delete_sentence(
     return {"deleted": sentence_id, "text": current["text"]}
 
 
-def ignore_sentence(page: Page, sentence_id: int, collection_id: int | None) -> dict:
-    collection = resolve_collection(page, collection_id)
+def ignore_sentence(
+    page: Page,
+    sentence_id: int,
+    collection_id: int | None,
+    collection_name: str | None = None,
+) -> dict:
+    collection = resolve_collection(page, collection_id, collection_name)
     current = _sentence(page, sentence_id, collection)
     ajax(
         page,
@@ -390,8 +438,10 @@ def ignore_sentence(page: Page, sentence_id: int, collection_id: int | None) -> 
     return {"ignored": sentence_id, "text": current["text"]}
 
 
-def next_cards(page: Page, collection_id: int | None) -> dict:
-    collection = resolve_collection(page, collection_id)
+def next_cards(
+    page: Page, collection_id: int | None, collection_name: str | None = None
+) -> dict:
+    collection = resolve_collection(page, collection_id, collection_name)
     data = ajax(page, f"{collection_base(collection)}/play")
     cards = []
     for sentence in (data.get("collectionClozeSentences") or [])[:10]:
