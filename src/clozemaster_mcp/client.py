@@ -486,12 +486,14 @@ def plan_additions(
     existing: list[dict],
     cards: list[dict],
     ignore_ids: set[int] | None = None,
+    repeat_clozes: bool = False,
 ) -> tuple[list[dict], list[dict]]:
     """Split cards into ones to add and ones already covered.
 
     The same sentence may be added again when the cloze is a new word.
     A sentence that already hides that same word is skipped.
-    A cloze that is already hidden on any other card is skipped.
+    A cloze that is already hidden on any other card is skipped, unless
+    repeat_clozes allows the same word on different sentences.
     """
     ignored = ignore_ids or set()
     kept = [row for row in existing if row.get("id") not in ignored]
@@ -534,7 +536,7 @@ def plan_additions(
                 }
             )
             continue
-        if cloze_key in clozes:
+        if cloze_key in clozes and not repeat_clozes:
             skipped.append(
                 {
                     "sentence": sentence,
@@ -606,9 +608,14 @@ def add_sentences(
     cards: list[dict],
     collection_id: int | None = None,
     collection_name: str | None = None,
+    repeat_clozes: bool = False,
 ) -> dict:
     collection = resolve_collection(page, collection_id, collection_name)
-    ready, skipped = plan_additions(list_sentences(page, None, collection=collection), cards)
+    ready, skipped = plan_additions(
+        list_sentences(page, None, collection=collection),
+        cards,
+        repeat_clozes=repeat_clozes,
+    )
     added = _create_cards(page, collection, ready)
     return {
         "collection": collection.get("name"),

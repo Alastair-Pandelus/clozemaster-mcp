@@ -187,13 +187,20 @@ def clozemaster_add_sentences(
     cards: list[dict],
     collection_id: int | None = None,
     collection_name: str | None = None,
+    repeat_clozes: bool = False,
 ) -> str:
     """Add many cards in one call. Each card has sentence, translation, cloze, and note.
 
     A card is skipped when that sentence already hides the same cloze, or when
     that cloze is already a card. The same sentence is added when the cloze is new.
+    repeat_clozes=True lets the same word be hidden on different sentences, for a
+    grammar course where a word is practised several times.
     """
-    return _run(lambda page: add_sentences(page, cards, collection_id, collection_name))
+    return _run(
+        lambda page: add_sentences(
+            page, cards, collection_id, collection_name, repeat_clozes
+        )
+    )
 
 
 @mcp.tool()
